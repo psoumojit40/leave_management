@@ -3,39 +3,15 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IHoliday extends Document {
   name: string;
   date: Date;
-  type: 'public' | 'company' | 'observance';
-  description?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  type: 'Public' | 'Company' | 'Observance';
+  duration: number;
 }
 
-const HolidaySchema: Schema<IHoliday> = new Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    date: {
-      type: Date,
-      required: true,
-    },
-    type: {
-      type: String,
-      enum: ['public', 'company', 'observance'],
-      required: true,
-    },
-    description: {
-      type: String,
-      trim: true,
-    },
-  },
-  {
-    timestamps: true,
-  }
-);
-
-// Index for faster queries by date
-HolidaySchema.index({ date: 1 });
+const HolidaySchema: Schema = new Schema({
+  name: { type: String, required: true },
+  date: { type: Date, required: true, unique: true }, // No two holidays on same day
+  duration: { type: Number, required: true, default: 1 },
+  type: { type: String, enum: ['Public', 'Company', 'Observance'], default: 'Public' }
+}, { timestamps: true });
 
 export const Holiday = mongoose.model<IHoliday>('Holiday', HolidaySchema);

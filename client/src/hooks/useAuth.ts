@@ -5,15 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useSelector, useDispatch } from 'react-redux';
 import { jwtDecode } from 'jwt-decode';
 
-// FIX: Path must match your actual folder structure (no /slices/)
 import { 
   setCredentials, 
   clearCredentials, 
   loginUser, 
-  logoutUser 
+  logoutUser,
+  fetchCurrentUser // ✅ IMPORT THE NEW THUNK WE MADE
 } from '@/store/authSlice';
 
-// This will now find the index.ts you just created
 import { RootState, AppDispatch } from '@/store'; 
 
 interface JWTPayload {
@@ -38,7 +37,7 @@ export default function useAuth() {
 
     const savedToken = localStorage.getItem('token');
     
-    // Only attempt hydration if there is a token and no user in state
+    // Only attempt hydration if there is a token and no user in state (meaning we just refreshed)
     if (savedToken && !user) {
       try {
         const decoded = jwtDecode<JWTPayload>(savedToken);
@@ -48,16 +47,9 @@ export default function useAuth() {
           // Token expired, clear it
           dispatch(logoutUser());
         } else {
-          // Re-populate Redux state with decoded user data
-          dispatch(setCredentials({
-            user: {
-              id: decoded.id,
-              name: decoded.name,
-              email: decoded.email,
-              role: decoded.role,
-            },
-            token: savedToken
-          }));
+          // ✅ THE FIX: Stop using the stale decoded token! 
+          // Ask the backend for the absolute newest database profile.
+          dispatch(fetchCurrentUser());
         }
       } catch (err) {
         // If decoding fails, the token is likely corrupt
@@ -73,7 +65,8 @@ export default function useAuth() {
   // 3. Facade Methods
   const login = async (email: string, pass: string) => {
     // Triggers the Async Thunk we defined in authSlice
-    const result = await dispatch(loginUser({ email, password: pass }));
+    // Note: your previous file mapped 'email' to 'loginId'. Let's keep it consistent.
+    const result = await dispatch(loginUser({ loginId: email, password: pass, role: '' })); 
     
     // If Redux successfully logged in, redirect to dashboard
     if (loginUser.fulfilled.match(result)) {

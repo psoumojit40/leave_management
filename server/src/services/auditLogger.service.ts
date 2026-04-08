@@ -1,5 +1,5 @@
-import { AuditLog } from '../models/AuditLog.model';
-import { User } from '../models/User.model';
+import { AuditLog } from '../models/AuditLog.model.js';
+import mongoose from 'mongoose';
 
 export const logAudit = async (
   actorId: string,
@@ -13,13 +13,22 @@ export const logAudit = async (
   userAgent?: string
 ) => {
   try {
-    // Create audit log entry
+    // ✅ FIX 1: Strict Sanitization
+    // If targetId is "N/A", null, or an invalid ID string, we discard it entirely.
+    const cleanTargetId = (targetId && mongoose.Types.ObjectId.isValid(targetId)) 
+      ? new mongoose.Types.ObjectId(targetId) 
+      : undefined;
+
+    // ✅ FIX 2: Handle missing firstName
+    // If actorName is undefined (because the user still has 'name' in DB), we use a fallback.
+    const finalActorName = actorName || "Unknown User";
+
     const auditLog = new AuditLog({
       actorId,
-      actorName,
+      actorName: finalActorName, 
       action,
-      targetId: targetId || undefined,
-      targetType: targetType || undefined,
+      targetId: cleanTargetId,
+      targetType: targetType || 'System',
       targetName: targetName || undefined,
       description: description || undefined,
       timestamp: new Date(),
@@ -28,16 +37,12 @@ export const logAudit = async (
     });
     
     await auditLog.save();
-    
-    // In a production environment, you might also send this to a logging service
-    // or external audit system
-    console.log(`AUDIT LOG: ${actorName} performed ${action} on ${targetType || 'unknown'} ${targetName || ''} (ID: ${targetId || 'N/A'})`);
+    console.log(`[AUDIT SUCCESS] ${finalActorName} -> ${action}`);
     
     return auditLog;
-  } catch (error) {
-    // If audit logging fails, we don't want to break the main functionality
-    // Just log the error to console
-    console.error('Failed to create audit log:', error);
-    // Don't throw the error to avoid disrupting the main operation
+  } catch (error: any) {
+    // ✅ FIX 3: Do not throw
+    // If the audit log fails, we just log it to the console so the main app doesn't crash.
+    console.error('AUDIT LOGGING FAILED (Background):', error.message);
   }
 };

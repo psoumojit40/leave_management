@@ -30,6 +30,14 @@ export default function TeamCalendar() {
   // Track which month we are looking at
   const [viewDate, setViewDate] = useState(new Date());
 
+  // ✅ Helper to get YYYY-MM-DD in local time
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   useEffect(() => {
     const fetchEvents = async () => {
       try {
@@ -50,15 +58,19 @@ export default function TeamCalendar() {
     fetchEvents();
   }, []);
 
-  // 3. Group events by date (Calculated once when events change)
+  // 3. Group events by date (Fixed for local time)
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
     events.forEach(event => {
-      const start = new Date(event.start);
-      const end = new Date(event.end);
+      // Split to avoid timezone shift on the input strings
+      const [sYear, sMonth, sDay] = event.start.split('-').map(Number);
+      const [eYear, eMonth, eDay] = event.end.split('-').map(Number);
+      
+      const start = new Date(sYear, sMonth - 1, sDay);
+      const end = new Date(eYear, eMonth - 1, eDay);
       
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-        const dateString = d.toISOString().split('T')[0];
+        const dateString = formatLocalDate(d);
         if (!map[dateString]) map[dateString] = [];
         map[dateString].push(event);
       }
@@ -66,7 +78,7 @@ export default function TeamCalendar() {
     return map;
   }, [events]);
 
-  // 4. Generate the Month Grid
+  // 4. Generate the Month Grid (Fixed for local time highlight)
   const { weeks, monthLabel } = useMemo(() => {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
@@ -74,7 +86,9 @@ export default function TeamCalendar() {
     const lastDay = new Date(year, month + 1, 0);
     const startingDay = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // ✅ FIX: Use local date formatting for "Today"
+    const todayStr = formatLocalDate(new Date());
 
     const monthWeeks: (DayData | null)[][] = [];
     let dayCounter = 1;
@@ -85,7 +99,10 @@ export default function TeamCalendar() {
         if ((i === 0 && j < startingDay) || dayCounter > daysInMonth) {
           week.push(null);
         } else {
-          const dateStr = new Date(year, month, dayCounter).toISOString().split('T')[0];
+          // ✅ FIX: Use local date constructor and formatter
+          const dateObj = new Date(year, month, dayCounter);
+          const dateStr = formatLocalDate(dateObj);
+          
           week.push({
             date: dateStr,
             dayNumber: dayCounter,
@@ -181,11 +198,11 @@ export default function TeamCalendar() {
           ))}
         </div>
 
-        {/* Selected Details Drawer (Inside the card) */}
+        {/* Selected Details Drawer */}
         {selectedDate && (
           <div className="mt-4 p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg animate-in slide-in-from-bottom-2">
             <p className="text-xs font-bold text-indigo-900 mb-2">
-              {new Date(selectedDate).toLocaleDateString('en-US', { dateStyle: 'full' })}
+              {new Date(selectedDate.replace(/-/g, '/')).toLocaleDateString('en-US', { dateStyle: 'full' })}
             </p>
             {eventsByDate[selectedDate]?.length > 0 ? (
               <div className="space-y-1.5">

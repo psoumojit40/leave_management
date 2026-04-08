@@ -1,112 +1,214 @@
-'use client'; // FIX 1: Directive for hooks
+'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
 import Button from '@/components/ui/Button';
+import { toast } from 'sonner';
 
-// FIX 2: Define the LeaveRequest interface
+// ✅ 1. Interface updated to handle both strings and populated objects
 interface LeaveRequest {
-  id: number;
-  type: string;
+  _id: string;
+  leaveType: string | { _id: string; name: string } | null;
   startDate: string;
   endDate: string;
-  status: 'Approved' | 'Pending' | 'Rejected' | 'Cancelled';
+  status: 'Pending' | 'Approved' | 'Rejected';
+  reason: string;
+  createdAt: string;
+  employeeId?: { firstName: string; lastName: string };
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export default function LeaveHistoryPage() {
-  // FIX 3: Type the state correctly
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const { token, user } = useSelector((state: RootState) => state.auth);
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+
+  const fetchLeaves = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/leave', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLeaves(data);
+      } else {
+        throw new Error(data.message || "Failed to fetch leaves");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchLeaveRequests = async () => {
-      try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const data: LeaveRequest[] = [
-          { id: 1, type: 'Vacation', startDate: '2026-04-10', endDate: '2026-04-15', status: 'Approved' },
-          { id: 2, type: 'Sick Leave', startDate: '2026-04-05', endDate: '2026-04-05', status: 'Pending' },
-          { id: 3, type: 'Personal', startDate: '2026-03-20', endDate: '2026-03-21', status: 'Rejected' },
-        ];
-        setLeaveRequests(data);
-      } catch (error) {
-        console.error('Failed to fetch leave requests:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (token) fetchLeaves();
+  }, [token]);
 
-    fetchLeaveRequests();
-  }, []);
+  // ✅ 2. Safe Helper to display the leave type without TypeScript errors
+  // ✅ Copy this over your old renderLeaveType
+  const renderLeaveType = (leave: any) => {
+    // 1. Check if leaveType is an object with a name (Populated from LeaveSettings)
+    if (leave.leaveType && typeof leave.leaveType === 'object' && leave.leaveType.name) {
+      return leave.leaveType.name;
+    }
 
-  if (loading) {
+    // 2. Check if leaveType is just a string
+    if (typeof leave.leaveType === 'string' && leave.leaveType.trim() !== "") {
+      return leave.leaveType;
+    }
+
+    // 3. Check if the field is actually just called 'type' (Common in some models)
+    if (leave.type && typeof leave.type === 'string') {
+      return leave.type;
+    }
+
+    // 4. Check if 'type' is an object
+    if (leave.type && typeof leave.type === 'object' && leave.type.name) {
+      return leave.type.name;
+    }
+
+    return 'Misc Leave'; // Better than "Unknown" for the UI
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-CA');
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'Approved':
+        return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">Approved</span>;
+      case 'Pending':
+        return <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full">Pending</span>;
+      case 'Rejected':
+        return <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">Rejected</span>;
+      default:
+        return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">{status}</span>;
+    }
+  };
+
+  if (selectedLeave) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <div className="inline-block animate-spin rounded-full border-4 border-t-indigo-600 border-b-transparent w-12 h-12"></div>
-        <p className="mt-4 text-gray-600 font-medium">Retrieving history...</p>
+      <div className="space-y-6">
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8">
+          <div className="flex justify-between items-center mb-8 border-b border-gray-50 pb-6">
+            <h2 className="text-2xl font-black text-gray-900">Leave Request Details</h2>
+            {getStatusBadge(selectedLeave.status)}
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 mb-8">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Leave Type</p>
+              {/* ✅ Details Fix */}
+              <p className="text-lg font-bold text-gray-900">{renderLeaveType(selectedLeave)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Employee / Request ID</p>
+              <p className="text-lg font-bold text-gray-900">
+                {selectedLeave.employeeId ? `${selectedLeave.employeeId.firstName} ${selectedLeave.employeeId.lastName}` : selectedLeave._id.slice(-6).toUpperCase()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Start Date</p>
+              <p className="text-lg font-bold text-gray-900">{formatDate(selectedLeave.startDate)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">End Date</p>
+              <p className="text-lg font-bold text-gray-900">{formatDate(selectedLeave.endDate)}</p>
+            </div>
+          </div>
+
+          <div className="mb-8">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Reason for Leave</p>
+            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+              <p className="text-gray-600 font-medium italic">"{selectedLeave.reason || 'No reason provided.'}"</p>
+            </div>
+          </div>
+
+          {selectedLeave.status !== 'Pending' && (
+            <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-50 grid grid-cols-2 gap-8 mb-6">
+              <div>
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Processed By</p>
+                <p className="text-base font-bold text-blue-900">
+                  {/* ✅ If it's the manager object, show the full name. Otherwise, show the string/ID. */}
+                  {selectedLeave.approvedBy && typeof selectedLeave.approvedBy === 'object'
+                    ? `${(selectedLeave.approvedBy as any).firstName} ${(selectedLeave.approvedBy as any).lastName}`
+                    : (selectedLeave.approvedBy || 'Manager')}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Processed On</p>
+                <p className="text-base font-bold text-blue-900">{formatDate(selectedLeave.approvedAt || new Date().toISOString())}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-50">
+            <p className="text-xs font-bold text-gray-400">
+              Application submitted on {formatDate(selectedLeave.createdAt)}
+            </p>
+            <button onClick={() => setSelectedLeave(null)} className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors">
+              Back to History
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 max-w-6xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Leave History</h2>
-          <p className="text-sm text-gray-500">Track your past and upcoming leave applications.</p>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Leave History</h1>
+          <p className="text-gray-500 font-medium mt-1">Track past and upcoming leave applications.</p>
         </div>
-        <Link href="/leave/apply">
-          <Button size="sm">Apply New</Button>
-        </Link>
+        {user?.role === 'employee' && (
+          <Button variant="primary" className="rounded-xl px-6">Apply New</Button>
+        )}
       </div>
-      
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {leaveRequests.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-gray-400">No leave requests found.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Start Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">End Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {leaveRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{request.type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{request.startDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{request.endDate}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        request.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                        request.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                        request.status === 'Rejected' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-700'
-                      }`}>
-                        {request.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Link 
-                        href={`/leave/${request.id}`}
-                        className="text-indigo-600 hover:text-indigo-900 font-bold"
-                      >
+
+      <div className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-white">
+              <tr>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">End Date</th>
+                <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold animate-pulse">Loading history...</td></tr>
+              ) : leaves.length === 0 ? (
+                <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold">No leave requests found.</td></tr>
+              ) : (
+                leaves.map((leave) => (
+                  <tr key={leave._id} className="hover:bg-gray-50/50 transition-colors">
+                    {/* ✅ Table Fix */}
+                    <td className="px-8 py-5 text-sm font-bold text-gray-900">{renderLeaveType(leave)}</td>
+                    <td className="px-8 py-5 text-sm font-medium text-gray-600">{formatDate(leave.startDate)}</td>
+                    <td className="px-8 py-5 text-sm font-medium text-gray-600">{formatDate(leave.endDate)}</td>
+                    <td className="px-8 py-5">{getStatusBadge(leave.status)}</td>
+                    <td className="px-8 py-5 text-right">
+                      <button onClick={() => setSelectedLeave(leave)} className="text-sm font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
                         Details
-                      </Link>
+                      </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

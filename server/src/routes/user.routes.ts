@@ -6,29 +6,23 @@ import {
   updateUser,
   deleteUser,
   getCurrentUser
-} from '../controllers/user.controller';
-import { authenticate } from '../middlewares/authenticate';
-import { authorize } from '../middlewares/authorize';
-import { validate } from '../middlewares/validate';
-import { 
-  createUserValidator, 
-  updateUserValidator, 
-  idValidator 
-} from '../validators/user.validator';
+} from '../controllers/user.controller.js';
+import { authenticate } from '../middlewares/authenticate.js';
+import { authorize } from '../middlewares/authorize.js';
 
 const router = Router();
 
-// Apply authentication middleware to all routes
 router.use(authenticate);
 
-// Employee routes (limited access)
 router.get('/me', getCurrentUser);
 
-// Manager/Admin routes
-router.get('/', authorize(['manager', 'admin']), getUsers);
-router.get('/:id', authorize(['manager', 'admin']), validate(idValidator), getUserById);
-router.post('/', authorize(['admin']), validate(createUserValidator), createUser);
-router.put('/:id', authorize(['admin']), validate(updateUserValidator), updateUser);
-router.delete('/:id', authorize(['admin']), validate(idValidator), deleteUser);
+// --- TEAM MANAGEMENT ROUTES ---
+
+// --- GENERAL ADMIN/MANAGER ROUTES ---
+router.get('/', authorize('manager', 'admin'), getUsers);
+router.get('/:id', authorize('manager', 'admin'), getUserById);
+router.post('/', authorize('admin'), createUser);
+router.put('/:id', authorize('admin'), updateUser);
+router.delete('/:id', authorize('admin'), deleteUser);
 
 export default router;

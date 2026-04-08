@@ -1,95 +1,83 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-// FIX 1: Import the notification action
-import { pushNotification } from '@/store/notificationSlice';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
+// 1. Interfaces
 export interface LeaveRequest {
-  id: string;
-  type: 'Vacation' | 'Sick Leave' | 'Personal Leave';
+  _id: string; // MongoDB uses _id
+  type: string;
   startDate: string;
   endDate: string;
-  days: number;
+  days: number; // Match the schema field 'days'
   reason: string;
   status: 'pending' | 'approved' | 'rejected';
-  appliedOn: string;
-  employeeName?: string;
+  createdAt: string; // MongoDB auto-timestamp
+  employeeId?: any; // The populated employee data
 }
 
-interface LeaveBalances {
-  [key: string]: { used: number; total: number };
-}
-
-interface LeaveStats {
-  totalDays: number;
-  usedDays: number;
-  pendingDays: number;
+// ✅ NEW: Interface for the settings we created in the backend
+export interface LeaveSetting {
+  _id: string;
+  name: string;
+  defaultDays: number;
+  color: string;
+  isActive: boolean;
 }
 
 interface LeaveState {
   requests: LeaveRequest[];
-  balances: LeaveBalances;
-  stats: LeaveStats;
+  settings: LeaveSetting[]; // ✅ NEW: Added to state
   loading: boolean;
   error: string | null;
 }
 
 const initialState: LeaveState = {
   requests: [],
-  balances: {
-    vacation: { used: 0, total: 20 },
-    sick: { used: 0, total: 10 },
-    personal: { used: 0, total: 5 },
-  },
-  stats: { totalDays: 35, usedDays: 0, pendingDays: 0 },
+  settings: [], // ✅ NEW: Starts empty until fetched
   loading: false,
   error: null,
 };
 
-// 2. Async Thunks
+// 2. REAL API Fetch - Grabs history from your database
 export const fetchLeaveData = createAsyncThunk(
   'leave/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return {
-        requests: [
-          { id: '1', type: 'Vacation', startDate: '2026-04-10', endDate: '2026-04-15', days: 6, reason: 'Family trip', status: 'approved', appliedOn: '2026-04-01' }
-        ],
-        balances: { vacation: { used: 6, total: 20 }, sick: { used: 0, total: 10 }, personal: { used: 0, total: 5 } }
-      };
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication required');
+
+      // Hits the controller we built: getLeaveRequests
+      const res = await fetch('http://localhost:5000/api/leave', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || 'Failed to fetch data');
+
+      return data; // Returns the array of real requests
     } catch (error: any) {
-      return rejectWithValue('Failed to load leave data');
+      return rejectWithValue(error.message || 'Failed to load leave data');
     }
   }
 );
 
-export const submitLeaveRequest = createAsyncThunk(
-  'leave/submitRequest',
-  // FIX 2: Added { dispatch } from thunkAPI
-  async (leaveData: Omit<LeaveRequest, 'id' | 'status' | 'appliedOn' | 'days'>, { dispatch, rejectWithValue }) => {
+// ✅ NEW: Thunk to fetch the Leave Categories
+export const fetchLeaveSettings = createAsyncThunk(
+  'leave/fetchSettings',
+  async (_, { rejectWithValue }) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const start = new Date(leaveData.startDate);
-      const end = new Date(leaveData.endDate);
-      const daysCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-      
-      const newRequest = {
-        ...leaveData,
-        id: `LR-${Date.now()}`,
-        days: daysCount,
-        status: 'pending' as const,
-        appliedOn: new Date().toISOString().split('T')[0],
-      };
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('Authentication required');
 
-      // FIX 3: Trigger the notification toast on success
-      dispatch(pushNotification({
-        message: `Leave request for ${daysCount} day(s) submitted successfully!`,
-        type: 'success'
-      }));
+      const res = await fetch('http://localhost:5000/api/leave-settings', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to fetch settings');
 
-      return newRequest;
+      return data;
     } catch (error: any) {
-      return rejectWithValue('Failed to submit request');
+      return rejectWithValue(error.message || 'Failed to load leave settings');
     }
   }
 );
@@ -103,37 +91,23 @@ const leaveSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchLeaveData.pending, (state) => { state.loading = true; })
+      // Handle Leave Requests
+      .addCase(fetchLeaveData.pending, (state) => { 
+        state.loading = true; 
+        state.error = null;
+      })
       .addCase(fetchLeaveData.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload.requests as LeaveRequest[];
-        state.balances = action.payload.balances;
+        state.requests = action.payload as LeaveRequest[];
       })
-      .addCase(submitLeaveRequest.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(submitLeaveRequest.fulfilled, (state, action) => {
+      .addCase(fetchLeaveData.rejected, (state, action) => {
         state.loading = false;
-        state.requests.unshift(action.payload as LeaveRequest);
-        
-        const type = action.payload.type.toLowerCase().replace(' ', '') as keyof LeaveBalances;
-        if (state.balances[type]) {
-          state.balances[type].used += action.payload.days;
-        }
+        state.error = action.payload as string;
       })
-      // FIX 4: Improved Status Update Matcher
-      .addMatcher(
-        (action) => action.type.includes('Request/fulfilled') && !action.type.includes('submit'),
-        (state, action: PayloadAction<string>) => {
-          const isApprove = action.type.includes('approve');
-          const newStatus = isApprove ? 'approved' : 'rejected';
-          
-          state.requests = state.requests.map(req => 
-            req.id === action.payload ? { ...req, status: newStatus } : req
-          );
-          state.loading = false;
-        }
-      );
+      // ✅ NEW: Handle Leave Settings
+      .addCase(fetchLeaveSettings.fulfilled, (state, action) => {
+        state.settings = action.payload as LeaveSetting[];
+      });
   },
 });
 

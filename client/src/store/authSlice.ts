@@ -9,11 +9,24 @@ interface User {
   lastName: string;
   email: string;
   role: 'employee' | 'manager' | 'admin';
-  department?: string; // ✅ ADD THIS LINE
+  department?: string; 
+  gender: 'male' | 'female' | 'other';
   employeeId?: string;
   managerId?: string;
   adminId?: string;
+  assignedManager?: string;
+  
+  leaveBalances: {
+    annual: number;
+    sick: number;
+    personal: number;
+    bereavement: number;
+    maternity: number;
+    paternity: number;
+    special: number;
+  };
 }
+
 
 interface AuthState {
   user: User | null;
@@ -71,6 +84,29 @@ export const logoutUser = createAsyncThunk('auth/logout', async (_, { dispatch }
   return undefined;
 });
 
+// Add this right below logoutUser
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchMe',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return rejectWithValue('No token found');
+
+      // Call your existing /me route (Adjust the URL if you moved it to /api/auth/me)
+      const response = await fetch('http://localhost:5000/api/users/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch user');
+
+      const user = await response.json();
+      return { user, token };
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 // 4. The Slice
 const authSlice = createSlice({
   name: 'auth',
@@ -88,6 +124,11 @@ const authSlice = createSlice({
       state.isAuthenticated = false; // ✅ Reset to false
       state.error = null;
     },
+    updateAssignedManager: (state, action: PayloadAction<string>) => {
+      if (state.user) {
+        state.user.assignedManager = action.payload;
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -105,9 +146,26 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = false; // ✅ Ensure it stays false on error
         state.error = action.payload as string;
+      })
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.user = action.payload.user; // This updates Redux with the FRESH database user!
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+        state.loading = false;
+      })
+      .addCase(fetchCurrentUser.rejected, (state) => {
+        state.loading = false;
+        // Optional: If you want to force log them out if the token expires, you can do:
+        // state.isAuthenticated = false; 
+        // state.user = null;
+        // state.token = null;
       });
+
   },
 });
 
-export const { setCredentials, clearCredentials } = authSlice.actions;
+export const { setCredentials, clearCredentials, updateAssignedManager } = authSlice.actions;
 export default authSlice.reducer;

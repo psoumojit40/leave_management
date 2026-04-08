@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 import { User, IUser } from '../models/User.model.js';
 
-// Extend Express Request type globally within this file
 declare global {
   namespace Express {
     interface Request {
@@ -19,25 +18,33 @@ interface TokenPayload {
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.headers.authorization?.startsWith('Bearer') 
-      ? req.headers.authorization.split(' ')[1] 
-      : null;
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
 
     if (!token) {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    // FIX: Cast secret as string to avoid "Secret | null" error
     const decoded = jwt.verify(token, config.jwtSecret as string) as TokenPayload;
 
-    const user = await User.findById(decoded.id).select('-password');
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'User not found or deactivated' });
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ message: 'Invalid token payload' });
     }
 
-    req.user = user; // Now recognized globally thanks to 'declare global'
+    // Fetches full user profile, including leaveBalances
+    const user = await User.findById(decoded.id).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ message: 'User no longer exists' });
+    }
+
+    if (!user.isActive) {
+      return res.status(401).json({ message: 'Your account has been deactivated' });
+    }
+
+    req.user = user; 
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({ message: 'Session expired. Please log in again.' });
   }
 };

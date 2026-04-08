@@ -15,6 +15,8 @@ export default function RegisterPage() {
     lastName: '',
     email: '',
     password: '',
+    role: '',
+    gender: '',
     employeeId: '',
     managerId: '',
     dob: '',
@@ -35,7 +37,8 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           role: role,
-          department: formData.department, // ✅ ADD THIS LINE
+          gender: formData.gender,
+          department: formData.department, 
           employeeId: formData.employeeId || undefined,
           managerId: formData.managerId || undefined,
           dob: formData.dob || undefined,
@@ -81,6 +84,20 @@ export default function RegisterPage() {
             >
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">Gender</label>
+            <select
+              required
+              value={formData.gender}
+              onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+              className="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-indigo-500"
+            >
+              <option value="">Select Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
             </select>
           </div>
           {/* Department Dropdown */}
