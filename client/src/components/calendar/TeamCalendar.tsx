@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
+import { useSelector } from 'react-redux'; 
+import { RootState } from '@/store';
+
 
 // 1. Define the Interface for Events
 interface CalendarEvent {
@@ -23,6 +26,9 @@ interface DayData {
 }
 
 export default function TeamCalendar() {
+  // ✅ NEW: Get the token to authenticate the API call
+  const { token } = useSelector((state: RootState) => state.auth); 
+  
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -30,7 +36,6 @@ export default function TeamCalendar() {
   // Track which month we are looking at
   const [viewDate, setViewDate] = useState(new Date());
 
-  // ✅ Helper to get YYYY-MM-DD in local time
   const formatLocalDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -39,29 +44,63 @@ export default function TeamCalendar() {
   };
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchRealHolidays = async () => {
+      if (!token) return;
+      
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        const data: CalendarEvent[] = [
-          { id: 1, title: 'Alice Johnson - Vacation', start: '2026-04-10', end: '2026-04-15', color: 'bg-blue-100 text-blue-800', type: 'leave' },
-          { id: 2, title: 'Bob Smith - Sick Leave', start: '2026-04-12', end: '2026-04-12', color: 'bg-red-100 text-red-800', type: 'leave' },
-          { id: 3, title: 'Carol Davis - Personal Leave', start: '2026-04-18', end: '2026-04-19', color: 'bg-green-100 text-green-800', type: 'leave' },
-          { id: 4, title: 'Company Holiday', start: '2026-04-20', end: '2026-04-20', color: 'bg-indigo-100 text-indigo-800', type: 'holiday' },
-        ];
-        setEvents(data);
+        // ✅ 1. Fetch real data from your backend
+        const res = await fetch('http://localhost:5000/api/holidays', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const dbHolidays = await res.json();
+
+        if (!Array.isArray(dbHolidays)) return;
+
+        // ✅ 2. Transform database holidays into calendar events
+        const formattedEvents: CalendarEvent[] = dbHolidays.map((h: any) => {
+          // Calculate the exact end date based on your 'duration' field
+          const startDate = new Date(h.date);
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + (h.duration || 1) - 1);
+
+          // Assign colors based on the holiday type
+          let colorTheme = 'bg-gray-100 text-gray-800';
+          if (h.type === 'Company') colorTheme = 'bg-indigo-100 text-indigo-800';
+          if (h.type === 'Public') colorTheme = 'bg-blue-100 text-blue-800';
+          if (h.type === 'Observance') colorTheme = 'bg-emerald-100 text-emerald-800';
+
+          return {
+            id: h._id,
+            title: h.name,
+            start: formatLocalDate(startDate),
+            end: formatLocalDate(endDate),
+            color: colorTheme,
+            type: 'holiday' // Tag it as a holiday so the calendar shows it
+          };
+        });
+
+        setEvents(formattedEvents);
       } catch (error) {
-        console.error('Failed to fetch events:', error);
+        console.error('Failed to fetch holidays:', error);
       } finally {
         setLoading(false);
       }
     };
-    fetchEvents();
-  }, []);
+    
+    fetchRealHolidays();
+  }, [token]);
+
+  // ... keep your existing eventsByDate useMemo below this!
 
   // 3. Group events by date (Fixed for local time)
+  // 3. Group events by date (Fixed for local time & ONLY showing holidays)
   const eventsByDate = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {};
-    events.forEach(event => {
+    
+    // ✅ NEW: Filter out all standard leaves, keep only 'holiday' types
+    const holidaysOnly = events.filter(e => e.type === 'holiday');
+
+    holidaysOnly.forEach(event => {
       // Split to avoid timezone shift on the input strings
       const [sYear, sMonth, sDay] = event.start.split('-').map(Number);
       const [eYear, eMonth, eDay] = event.end.split('-').map(Number);

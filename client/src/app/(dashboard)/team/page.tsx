@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '@/store';
 import { fetchCurrentUser } from '@/store/authSlice';
+import Link from 'next/link';
+
 import {
   Users,
   UserPlus,
@@ -157,8 +159,12 @@ export default function MyTeamPage() {
             <UserX className="w-12 h-12" />
           </div>
           <h2 className="text-4xl font-black text-gray-900 tracking-tight">Not Assigned to a Team</h2>
-          <p className="text-gray-500 font-medium text-lg max-w-md mx-auto">
-            You are not currently part of a team. Please check your <b className="text-indigo-600">Team Invitations</b> tab or contact your department manager.
+          <p className="text-gray-500 font-medium text-lg max-w-md mx-auto leading-relaxed">
+            You are not currently part of a team. Please check your{' '}
+            <Link href="/team/invitations" className="text-indigo-600 font-bold hover:text-indigo-800 hover:underline transition-colors">
+              Team Invitations
+            </Link>{' '}
+            tab or contact your department manager.
           </p>
         </div>
       );

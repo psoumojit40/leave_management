@@ -160,12 +160,16 @@ export default function LeaveHistoryPage() {
       </div>
     );
   }
+  
+  const isManagerOrAdmin = user?.role === 'manager' || user?.role === 'admin';
 
   return (
     <div className="space-y-6">
       <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Leave History</h1>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">
+            {isManagerOrAdmin ? 'Department Leave History' : 'My Leave History'}
+          </h1>
           <p className="text-gray-500 font-medium mt-1">Track past and upcoming leave applications.</p>
         </div>
         {user?.role === 'employee' && (
@@ -178,6 +182,10 @@ export default function LeaveHistoryPage() {
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-white">
               <tr>
+                {/* ✅ Conditionally render Employee Header for Managers */}
+                {isManagerOrAdmin && (
+                  <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Employee</th>
+                )}
                 <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Start Date</th>
                 <th className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">End Date</th>
@@ -187,13 +195,22 @@ export default function LeaveHistoryPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold animate-pulse">Loading history...</td></tr>
+                <tr><td colSpan={isManagerOrAdmin ? 6 : 5} className="p-10 text-center text-gray-400 font-bold animate-pulse">Loading history...</td></tr>
               ) : leaves.length === 0 ? (
-                <tr><td colSpan={5} className="p-10 text-center text-gray-400 font-bold">No leave requests found.</td></tr>
+                <tr><td colSpan={isManagerOrAdmin ? 6 : 5} className="p-10 text-center text-gray-400 font-bold">No leave requests found.</td></tr>
               ) : (
                 leaves.map((leave) => (
                   <tr key={leave._id} className="hover:bg-gray-50/50 transition-colors">
-                    {/* ✅ Table Fix */}
+                    
+                    {/* ✅ Conditionally render Employee Name for Managers */}
+                    {isManagerOrAdmin && (
+                      <td className="px-8 py-5 whitespace-nowrap">
+                        <div className="text-sm font-black text-gray-900">
+                          {leave.employeeId ? `${leave.employeeId.firstName} ${leave.employeeId.lastName}` : 'Unknown Employee'}
+                        </div>
+                      </td>
+                    )}
+
                     <td className="px-8 py-5 text-sm font-bold text-gray-900">{renderLeaveType(leave)}</td>
                     <td className="px-8 py-5 text-sm font-medium text-gray-600">{formatDate(leave.startDate)}</td>
                     <td className="px-8 py-5 text-sm font-medium text-gray-600">{formatDate(leave.endDate)}</td>

@@ -41,14 +41,14 @@ export function Sidebar() {
     // { name: 'Department Attendance', href: '/', icon: '🧮', roles: ['employee', 'manager'] },
 
     { name: 'Team Invitations', href: '/team/invitations', icon: '✉️', roles: ['employee'] },
-    { name: 'Settings', href: '/settings', icon: '⚙️', roles: ['employee', 'manager', 'admin'] },
+    // { name: 'Settings', href: '/settings', icon: '⚙️', roles: ['employee', 'manager', 'admin'] },
     { name: 'Holidays', href: '/holidays', icon: '🎉', roles: ['employee', 'manager', 'admin'] },
     
     // Restricted Items
     { name: 'Dept Leave History', href: '/approvals', icon: '✈', roles: ['manager', 'admin'] },
-    { name: 'Audit Log', href: '/audit-log', icon: '📋', roles: ['manager', 'admin'] },
+    { name: 'Audit Log', href: '/audit-log', icon: '📋', roles: ['admin',] },
     { name: 'Users', href: '/users', icon: '👤', roles: ['admin'] },
-    { name: 'Payroll Export', href: '/payroll-export', icon: '💰', roles: ['admin'] },
+    { name: 'Payroll Export', href: '/payroll-export', icon: '💰', roles: ['admin',] },
   ];
 
   // Filter items based on current user's role
