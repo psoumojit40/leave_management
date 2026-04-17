@@ -43,7 +43,7 @@ export function Navbar() {
             <input
               type="text"
               placeholder="Search records or dates..."
-              className="bg-transparent border-none text-sm focus:ring-0 w-full placeholder:text-gray-400 text-gray-600"
+              className="bg-transparent outline-none border-none text-sm focus:ring-0 w-full placeholder:text-gray-400 text-gray-600"
             />
           </div>
         )}
