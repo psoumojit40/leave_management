@@ -1,12 +1,12 @@
 import { Router } from 'express';
-// Added .js extensions and fixed createHoliday typo
+
+// Standardized extensions to .js for ES Module compatibility
 import {
   getHolidays,
-  getHolidayById,
   createHoliday,
   updateHoliday,
   deleteHoliday
-} from '../controllers/holiday.controller.js';
+} from '../controllers/holiday.controller.js'; 
 import { authenticate } from '../middlewares/authenticate.js';
 import { authorize } from '../middlewares/authorize.js';
 import { validate } from '../middlewares/validate.js';
@@ -18,16 +18,34 @@ import {
 
 const router = Router();
 
-// Apply authentication middleware to all routes
+// 1. All users must be logged in
 router.use(authenticate);
 
-// Employee routes (read-only)
+// 2. Public View: Employees, Managers, and Admins can see holidays
 router.get('/', getHolidays);
-router.get('/:id', validate(idValidator), getHolidayById);
+router.post('/', authorize('manager', 'admin'), createHoliday);
 
-// Manager/Admin routes
-router.post('/', authorize(['manager', 'admin']), validate(createHolidayValidator), createHoliday);
-router.put('/:id', authorize(['manager', 'admin']), validate(updateHolidayValidator), updateHoliday);
-router.delete('/:id', authorize(['manager', 'admin']), validate(idValidator), deleteHoliday);
+// 3. Management: ONLY Managers and Admins can Create, Update, or Delete
+// This ensures that an 'employee' role cannot hit these endpoints
+router.post(
+  '/', 
+  authorize('manager', 'admin'), 
+  validate(createHolidayValidator), 
+  createHoliday
+);
+
+router.put(
+  '/:id', 
+  authorize('manager', 'admin'), 
+  validate(updateHolidayValidator), 
+  updateHoliday
+);
+
+router.delete(
+  '/:id', 
+  authorize('manager', 'admin'), 
+  validate(idValidator), 
+  deleteHoliday
+);
 
 export default router;

@@ -14,6 +14,7 @@ const initAdmin = async () => {
         email: 'admin@system.com',
         password: '123456', // Model middleware will hash this automatically
         role: 'admin',
+        gender: 'male',
         adminId: 'ADMIN',
         department: 'Management',
         isActive: true

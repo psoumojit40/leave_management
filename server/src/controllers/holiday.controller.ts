@@ -1,137 +1,72 @@
-import { Request, Response, NextFunction } from 'express';
-// Added .js extensions and imported IUser for typing
+import { Request, Response } from 'express';
 import { Holiday } from '../models/Holiday.model.js';
-import { IUser } from '../models/User.model.js';
-import { logAudit } from '../services/auditLogger.service.js';
 
-// Define AuthRequest to satisfy TypeScript for req.user
-interface AuthRequest extends Request {
-  user?: IUser;
-}
-
-export const getHolidays = async (req: Request, res: Response, next: NextFunction) => {
+export const getHolidays = async (req: Request, res: Response) => {
   try {
-    const { type, startDate, endDate } = req.query;
-    const filter: any = {};
-    
-    if (type) {
-      filter.type = type;
-    }
-    
-    if (startDate && endDate) {
-      filter.date = {
-        $gte: new Date(startDate as string),
-        $lte: new Date(endDate as string),
-      };
-    }
-    
-    const holidays = await Holiday.find(filter).sort({ date: 1 });
+    // Sort by date so they appear in order on the calendar
+    const holidays = await Holiday.find().sort({ date: 1 });
     res.json(holidays);
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: "Error fetching holidays" });
   }
 };
 
-export const getHolidayById = async (req: Request, res: Response, next: NextFunction) => {
+export const createHoliday = async (req: Request, res: Response) => {
   try {
-    const holiday = await Holiday.findById(req.params.id);
-    if (!holiday) {
-      return res.status(404).json({ message: 'Holiday not found' });
-    }
-    res.json(holiday);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Fixed function name and used AuthRequest
-export const createHoliday = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { name, date, type, description } = req.body;
-
-    // Safety check for req.user
-    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
     
-    const holiday = new Holiday({
-      name,
-      date: new Date(date),
-      type,
-      description,
-    });
-    
+    let { name, date, type, duration } = req.body;
+
+    if (type === 'Public Holiday') type = 'Public';
+    if (type === 'Company Holiday') type = 'Company';
+
+    const holiday = new Holiday({ name, date, type, duration });
     await holiday.save();
-    
-    // Log audit
-    await logAudit(
-      req.user._id.toString(),
-      req.user.name,
-      'Holiday Created',
-      holiday._id.toString(),
-      'Holiday',
-      `Holiday created: ${holiday.name} on ${holiday.date.toISOString().split('T')[0]}`
-    );
     
     res.status(201).json(holiday);
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    // 🛡️ DUPLICATE CATCH: If you try to save two holidays on the exact same day
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "A holiday already exists on this exact date. Please choose another date." });
+    }
+    res.status(400).json({ message: error.message || "Database rejected the holiday." });
   }
 };
 
-export const updateHoliday = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteHoliday = async (req: Request, res: Response) => {
   try {
-    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
-
-    const holiday = await Holiday.findById(req.params.id);
-    if (!holiday) {
-      return res.status(404).json({ message: 'Holiday not found' });
-    }
-    
-    const { name, date, type, description } = req.body;
-    
-    if (name !== undefined) holiday.name = name;
-    if (date !== undefined) holiday.date = new Date(date);
-    if (type !== undefined) holiday.type = type;
-    if (description !== undefined) holiday.description = description;
-    
-    await holiday.save();
-    
-    await logAudit(
-      req.user._id.toString(),
-      req.user.name,
-      'Holiday Updated',
-      holiday._id.toString(),
-      'Holiday',
-      `Holiday updated: ${holiday.name}`
-    );
-    
-    res.json(holiday);
+    await Holiday.findByIdAndDelete(req.params.id);
+    res.json({ message: "Holiday removed successfully" });
   } catch (error) {
-    next(error);
+    res.status(500).json({ message: "Error deleting holiday" });
   }
 };
 
-export const deleteHoliday = async (req: AuthRequest, res: Response, next: NextFunction) => {
+// ✅ UPDATE HOLIDAY: Allows manager to modify existing records
+export const updateHoliday = async (req: Request, res: Response) => {
   try {
-    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+    const { id } = req.params;
+    const { name, date, type } = req.body;
 
-    const holiday = await Holiday.findById(req.params.id);
-    if (!holiday) {
-      return res.status(404).json({ message: 'Holiday not found' });
-    }
-    
-    await holiday.deleteOne();
-    
-    await logAudit(
-      req.user._id.toString(),
-      req.user.name,
-      'Holiday Deleted',
-      holiday._id.toString(),
-      'Holiday',
-      `Holiday deleted: ${holiday.name}`
+    const updatedHoliday = await Holiday.findByIdAndUpdate(
+      id,
+      { 
+        name, 
+        date: date ? new Date(date) : undefined, 
+        type 
+      },
+      { new: true, runValidators: true } // 'new' returns the modified document
     );
-    
-    res.json({ message: 'Holiday deleted successfully' });
-  } catch (error) {
-    next(error);
+
+    if (!updatedHoliday) {
+      return res.status(404).json({ message: "Holiday not found" });
+    }
+
+    res.json({ message: "Holiday updated successfully", holiday: updatedHoliday });
+  } catch (error: any) {
+    // Catch unique constraint errors (e.g., trying to move a holiday to a date that already has one)
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "A holiday already exists on this date." });
+    }
+    res.status(500).json({ message: "Error updating holiday" });
   }
 };

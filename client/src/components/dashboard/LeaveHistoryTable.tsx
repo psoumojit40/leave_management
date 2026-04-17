@@ -3,8 +3,7 @@
 import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import Badge from '@/components/ui/Badge';
-import { formatDate, getLeaveTypeDisplayName } from '@/utils/dateUtils';
-import { Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { getLeaveTypeDisplayName } from '@/utils/dateUtils';
 
 export default function LeaveHistoryTable() {
   const { requests, loading } = useSelector((state: RootState) => state.leave);
@@ -35,17 +34,19 @@ export default function LeaveHistoryTable() {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {recentRequests.length > 0 ? (
-              recentRequests.map((req) => (
-                <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+              recentRequests.map((req: any) => (
+                <tr key={req._id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">
-                    {getLeaveTypeDisplayName(req.type)}
+                    {getLeaveTypeDisplayName ? getLeaveTypeDisplayName(req.type) : req.type}
                   </td>
+                  
+                  {/* CHANGED: Now only shows the total days */}
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{req.days} Days</div>
-                    <div className="text-xs text-gray-400 font-medium">
-                      {formatDate(req.startDate)} - {formatDate(req.endDate)}
+                    <div className="text-sm font-bold text-gray-900">
+                      {req.days} Day{req.days !== 1 ? 's' : ''}
                     </div>
                   </td>
+                  
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge 
                       variant={
@@ -57,15 +58,21 @@ export default function LeaveHistoryTable() {
                       {req.status}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400 font-medium">
-                    {formatDate(req.appliedOn)}
+                  
+                  {/* CHANGED: Cleanly formats the date to "Apr 7, 2026" */}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                    {new Date(req.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
                 <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-400 italic">
-                  No recent leave requests found.
+                  No recent leave requests found. Apply for leave to see it here!
                 </td>
               </tr>
             )}

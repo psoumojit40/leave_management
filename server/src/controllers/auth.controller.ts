@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 // import { sendEmail } from '../services/email.service.js';
 // import { logAudit } from '../services/auditLogger.service.js';
 import { config } from '../config/env.js';
+import { LeaveSetting } from '../models/LeaveSetting.model.js';
+
 
 interface TokenPayload {
   id: string;
@@ -14,15 +16,25 @@ interface TokenPayload {
   department: string;
 }
 
-// 1. REGISTER
+// 1. REGISTER // ✅ Ensure this is imported
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { firstName, lastName, email, password, role, employeeId, managerId, dob, department } = req.body;
+    const { firstName, lastName, email, password, role, gender, employeeId, managerId, dob, department } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
+
+    // ✅ 1. Fetch all dynamic leave categories and their default quotas
+    const settings = await LeaveSetting.find();
+
+    // ✅ 2. Construct the initial balances Map using the names from the DB
+    const initialBalances = new Map();
+    settings.forEach((setting) => {
+      initialBalances.set(setting.name, setting.defaultDays);
+    });
 
     const user = new User({
       firstName,
@@ -30,24 +42,34 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       email,
       password,
       role: role || 'employee',
+      gender,
       department,
       employeeId: role === 'employee' ? employeeId : undefined,
       managerId: role === 'manager' ? managerId : undefined,
       dob: role === 'employee' ? dob : undefined,
+      leaveBalances: initialBalances
     });
 
     await user.save();
 
     const token = jwt.sign(
-      { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, department: user.department },
+      {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        gender: user.gender, // ✅ ADD THIS
+        department: user.department
+      },
       config.jwtSecret as string,
       { expiresIn: config.jwtExpiresIn as any }
     );
 
     console.log(`TEST MODE: Skip welcome email to ${email}`);
 
-    res.status(201).json({
-      message: 'User registered successfully',
+    res.json({
+      message: 'Login successful',
       token,
       user: {
         id: user._id,
@@ -55,7 +77,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         lastName: user.lastName,
         email: user.email,
         department: user.department,
-        role: user.role
+        role: user.role,
+        gender: user.gender, // ✅ ADD THIS
+        leaveBalances: Object.fromEntries(user.leaveBalances) // ✅ Use Object.fromEntries for Maps
       }
     });
   } catch (error) {
@@ -84,7 +108,8 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
           lastName: 'Admin',
           email: 'admin@system.com',
           department: 'Management',
-          role: 'admin'
+          role: 'admin',
+          leaveBalances: { annual: 99, sick: 99, personal: 99, bereavement: 99, maternity: 99, paternity: 99, special: 99 }
         }
       });
     }
@@ -122,8 +147,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        department: user.department, // ✅ Now properly returned for all users
-        role: user.role
+        department: user.department,
+        role: user.role,
+        leaveBalances: user.leaveBalances 
       }
     });
   } catch (error) {
@@ -148,7 +174,15 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     if (!user) return res.status(401).json({ message: 'User not found' });
 
     const newToken = jwt.sign(
-      { id: user._id, firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, department: user.department },
+      {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        gender: user.gender, 
+        department: user.department
+      },
       config.jwtSecret as string,
       { expiresIn: config.jwtExpiresIn as any }
     );
@@ -160,8 +194,9 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        department: user.department, // ✅ Added for refresh state
-        role: user.role
+        department: user.department,
+        role: user.role,
+        leaveBalances: user.leaveBalances // ✅ Added this line
       }
     });
   } catch (error) {

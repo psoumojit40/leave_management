@@ -1,45 +1,30 @@
-'use client'; // FIX 1: Essential for using useState
+'use client';
 
-import { useState } from 'react';
-import Button from '@/components/ui/Button'; // FIX 2: Using our type-safe Button
-import LeaveForm from '@/components/leave/LeaveForm';
+import LeaveForm from '@/components/leave/LeaveForm'; // ✅ Now works without props!
+import { ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export default function ApplyLeavePage() {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="space-y-6 p-4 max-w-4xl mx-auto">
-      {/* Header Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Apply for Leave</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Submit a new request for vacation, sick leave, or other absences.
+    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex items-center justify-between">
+        <Link href="/dashboard" className="group flex items-center text-sm font-bold text-gray-400 hover:text-indigo-600 transition-colors">
+          <ChevronLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" /> 
+          Back to Dashboard
+        </Link>
+      </div>
+
+      <div className="bg-white rounded-[2.5rem] p-10 border border-gray-100 shadow-sm">
+        <div className="mb-10">
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Apply for Leave</h1>
+          <p className="text-gray-500 font-medium mt-1">
+            Request your time off. Your balance will be updated once approved.
           </p>
         </div>
-        
-        <Button
-          onClick={() => setOpen(true)}
-          variant="primary"
-          className="whitespace-nowrap px-8"
-        >
-          <span className="mr-2">➕</span> New Request
-        </Button>
-      </div>
-      
-      {/* Informational Card */}
-      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6">
-        <h3 className="text-indigo-800 font-bold mb-2">Before you apply:</h3>
-        <ul className="text-sm text-indigo-700 space-y-1 list-disc list-inside">
-          <li>Ensure you have sufficient leave balance.</li>
-          <li>Discuss long absences with your manager in advance.</li>
-          <li>Supporting documents may be required for medical leave.</li>
-        </ul>
-      </div>
 
-      {/* The Form Component */}
-      {/* Note: Ensure LeaveForm is set up to handle 'open' and 'onOpenChange' props */}
-      <LeaveForm open={open} onOpenChange={setOpen} />
+        {/* ✅ This now works perfectly without needing open/onOpenChange */}
+        <LeaveForm />
+      </div>
     </div>
   );
 }

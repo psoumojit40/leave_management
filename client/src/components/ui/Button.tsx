@@ -1,11 +1,7 @@
 'use client';
 
-// import { ReactNode } from 'react';
-
 import { ComponentPropsWithoutRef } from 'react';
 
-// Using ComponentPropsWithoutRef<'button'> automatically includes 
-// type, onClick, disabled, className, and all other standard button props
 interface ButtonProps extends ComponentPropsWithoutRef<'button'> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
@@ -19,7 +15,8 @@ export default function Button({
   loading = false,
   className = '',
   disabled,
-  ...props // Spreads all other button attributes (id, title, aria-labels, etc.)
+  type = 'button', // Default to 'button', but will be overridden by 'submit' when passed
+  ...props 
 }: ButtonProps) {
   
   const baseClasses = 'inline-flex items-center justify-center rounded-lg text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:pointer-events-none disabled:active:scale-100';
@@ -40,13 +37,17 @@ export default function Button({
 
   return (
     <button
+      // We pass the type explicitly here
+      type={type}
+      // We combine classes
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      // Ensure the button is disabled during loading OR if disabled prop is true
       disabled={disabled || loading}
+      // Spread remaining props (aria-labels, id, etc.)
       {...props}
     >
       {loading ? (
         <div className="flex items-center">
-          {/* FIX: border-current ensures the spinner matches the text color of the variant */}
           <span className="inline-block animate-spin rounded-full border-2 border-t-transparent border-current w-4 h-4"></span>
           <span className="ml-2">Please wait...</span>
         </div>
