@@ -10,11 +10,12 @@ import { logoutUser } from '@/store/authSlice';
 export function Navbar() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const { user } = useSelector((state: RootState) => state.auth);
+  // ✅ Pull in 'token' as well so we know if we are currently loading
+  const { user, token } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
 
-  // ✅ Search is only for Managers and Admins
+  // Search is only for Managers and Admins
   const canSearch = user?.role === 'manager' || user?.role === 'admin';
 
   const handleLogout = async () => {
@@ -22,8 +23,9 @@ export function Navbar() {
     router.push('/login');
   };
 
+  // ✅ Show dots if loading, otherwise show initials
   const getInitials = () => {
-    if (!user?.firstName) return '??';
+    if (!user) return ''; 
     return `${user.firstName[0]}${user.lastName ? user.lastName[0] : ''}`.toUpperCase();
   };
 
@@ -63,16 +65,20 @@ export function Navbar() {
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center space-x-3 p-1.5 rounded-lg hover:bg-gray-50 transition-colors group"
           >
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-bold text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors">
-                {user ? `${user.firstName} ${user.lastName}` : 'Guest User'}
-              </p>
-              <p className="text-[10px] text-gray-400 font-medium tracking-tight uppercase">
-                {user?.role || 'User'}
-              </p>
-            </div>
+            {/* ✅ Only render the name/role text block if the user actually exists */}
+            {user && (
+              <div className="hidden sm:block text-right">
+                <p className="text-sm font-bold text-gray-900 leading-tight group-hover:text-indigo-600 transition-colors">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium tracking-tight uppercase">
+                  {user.role}
+                </p>
+              </div>
+            )}
 
-            <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm border-2 border-indigo-100 shadow-sm">
+            {/* ✅ Avatar circle: pulsing blank circle if loading, otherwise shows initials */}
+            <div className={`w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm border-2 border-indigo-100 shadow-sm ${!user ? 'animate-pulse' : ''}`}>
               {getInitials()}
             </div>
           </button>
