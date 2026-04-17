@@ -281,7 +281,7 @@ export default function MyTeamPage() {
         ))}
 
         {isAddingMode && availableEmployees.filter(emp => `${emp.firstName} ${emp.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())).map((emp) => (
-          <div key={emp._id} className="bg-white border border-gray-100 rounded-[3rem] p-8 text-center transition-all hover:shadow-xl group relative overflow-hidden">
+          <div key={emp._id} className="bg-white border-2 border-gray-300 shadow-lg shadow-gray-200/60 rounded-[3rem] p-8 text-center transition-all hover:shadow-xl hover:border-indigo-400 group relative overflow-hidden">
             {emp.invitationStatus === 'pending' && (
               <div className="absolute top-0 left-0 w-full bg-amber-500 text-white py-1 text-[10px] font-black uppercase tracking-widest">
                 Pending Decision

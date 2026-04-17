@@ -80,7 +80,7 @@ export function Sidebar() {
       </Link>
 
       {/* Navigation Links */}
-      <nav className="flex-1 mt-4 overflow-y-auto px-3 space-y-1 custom-scrollbar">
+      <nav className="flex-1 mt-4 overflow-y-auto overflow-x-hidden px-3 space-y-1 [&::-webkit-scrollbar]:hidden">
         {visibleItems.map((item) => {
           const isActive = pathname === item.href;
           return (
