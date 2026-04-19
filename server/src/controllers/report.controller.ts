@@ -8,7 +8,8 @@ import { logAudit } from '../services/auditLogger.service.js';
 // FIX 2: Define the shape of a populated Employee
 interface PopulatedEmployee {
   _id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   department?: string;
 }
 
@@ -73,7 +74,7 @@ export const generatePayrollReport = async (req: AuthRequest, res: Response, nex
       
       return {
         employeeId: user._id,
-        name: user.name,
+        name: `${user.firstName} ${user.lastName}`,
         department: user.department || 'Not assigned',
         totalPresentDays,
         totalAbsentDays,
@@ -86,7 +87,7 @@ export const generatePayrollReport = async (req: AuthRequest, res: Response, nex
     
     await logAudit(
       req.user._id.toString(),
-      req.user.name,
+      `${req.user.firstName} ${req.user.lastName}`,
       'Payroll Report Generated',
       'payroll-report',
       'Report',
@@ -120,7 +121,7 @@ export const generateAttendanceReport = async (req: AuthRequest, res: Response, 
     }
     
     const attendanceRecords = await AttendanceRecord.find(filter)
-      .populate<{ employeeId: PopulatedEmployee }>('employeeId', 'name department')
+      .populate<{ employeeId: PopulatedEmployee }>('employeeId', 'firstName lastName department')
       .sort({ date: -1 });
     
     const reportData: Record<string, any> = {};
@@ -130,7 +131,7 @@ export const generateAttendanceReport = async (req: AuthRequest, res: Response, 
       if (!reportData[empId]) {
         reportData[empId] = {
           employeeId: empId,
-          name: record.employeeId.name,
+          name: `${record.employeeId.firstName} ${record.employeeId.lastName}`,
           department: record.employeeId.department || 'Not assigned',
           records: [],
           stats: { totalDays: 0, presentDays: 0, absentDays: 0, halfDays: 0, totalHours: 0 }
@@ -154,7 +155,7 @@ export const generateAttendanceReport = async (req: AuthRequest, res: Response, 
     
     await logAudit(
       req.user._id.toString(),
-      req.user.name,
+      `${req.user.firstName} ${req.user.lastName}`,
       'Attendance Report Generated',
       'attendance-report',
       'Report',
@@ -200,7 +201,7 @@ export const generateLeaveReport = async (req: AuthRequest, res: Response, next:
       if (!reportData[empId]) {
         reportData[empId] = {
           employeeId: empId,
-          name: leave.employeeId.name,
+          name: `${leave.employeeId.firstName} ${leave.employeeId.lastName}`,
           department: leave.employeeId.department || 'Not assigned',
           leaveTypes: {},
           totalDays: 0,
@@ -224,7 +225,7 @@ export const generateLeaveReport = async (req: AuthRequest, res: Response, next:
         reason: leave.reason,
         appliedOn: leave.appliedOn,
         approvedBy: leave.approvedBy ? leave.approvedBy.name : 'System',
-        approvedOn: leave.approvedOn,
+        approvedOn: leave.approvedAt,
       });
       
       reportData[empId].totalDays += diffDays;
@@ -232,7 +233,7 @@ export const generateLeaveReport = async (req: AuthRequest, res: Response, next:
     
     await logAudit(
       req.user._id.toString(),
-      req.user.name,
+      `${req.user.firstName} ${req.user.lastName}`,
       'Leave Report Generated',
       'leave-report',
       'Report',

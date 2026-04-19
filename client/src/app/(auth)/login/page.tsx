@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md space-y-6 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+      <div className="w-full max-w-lg space-y-6 p-10 bg-white rounded-3xl border border-gray-300 shadow-2xl shadow-gray-400/40">
         <div className="text-center">
           <h2 className="text-3xl font-black text-gray-900 tracking-tight">Sign In</h2>
           <p className="mt-2 text-sm text-gray-500">Select your role to access the portal</p>
@@ -62,7 +62,7 @@ export default function LoginPage() {
             >
               <option value="employee">Employee</option>
               <option value="manager">Manager</option>
-              <option value="admin">Administrator</option>
+              {/* <option value="admin">Administrator</option> */}
             </select>
           </div>
 
