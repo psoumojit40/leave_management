@@ -1,5 +1,5 @@
 import express from 'express';
-// ✅ One clean import line for both security functions!
+
 import { authenticate } from '../middlewares/authenticate.js'; 
 import { authorize } from '../middlewares/authorize.js';
 

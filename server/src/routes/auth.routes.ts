@@ -1,6 +1,5 @@
 import { Router } from 'express';
 
-// ✅ Added .js extensions for ESM compatibility
 import { 
   register, 
   login, 
@@ -12,7 +11,7 @@ import {
 
 import { validate } from '../middlewares/validate.js';
 
-// ✅ Imported all 4 validators
+
 import { 
   registerValidator, 
   loginValidator, 

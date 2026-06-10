@@ -19,6 +19,7 @@ import holidayRoutes from './routes/holiday.routes.js';
 import reportRoutes from './routes/report.routes.js';
 import teamRoutes from './routes/team.routes.js';
 import leaveSettingRoutes from './routes/leaveSetting.routes.js';
+import insightsRoutes from './routes/insights.routes.js';
 
 
 // Import cron jobs
@@ -76,6 +77,7 @@ app.use('/api/holidays', holidayRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/leave-settings', leaveSettingRoutes);
+app.use('/api/employee', insightsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

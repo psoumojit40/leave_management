@@ -6,7 +6,7 @@ import { RootState, AppDispatch } from '@/store';
 import { fetchLeaveData, fetchLeaveSettings } from '@/store/leaveSlice'; 
 import { fetchNotifications } from '@/store/notificationSlice';
 import { fetchCurrentUser } from '@/store/authSlice';
-
+import { AiInsightsCard } from '@/components/dashboard/AiInsightsCard';
 // Components
 import LeaveHistoryTable from '@/components/dashboard/LeaveHistoryTable';
 import TeamCalendar from '@/components/calendar/TeamCalendar';
@@ -147,7 +147,7 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
-
+      <AiInsightsCard />
       {/* Main Balance Card */}
       <div className="relative group">
         {!user || filteredSettings.length === 0 ? (
