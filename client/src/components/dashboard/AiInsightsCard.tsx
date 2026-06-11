@@ -15,11 +15,16 @@ export function AiInsightsCard() {
   const [chatInput, setChatInput] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [messages, setMessages] = useState<{role: string, text: string}[]>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages]);
 
   // Initial Insight Fetch
@@ -105,7 +110,7 @@ export function AiInsightsCard() {
               onClick={() => setIsChatOpen(true)}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 backdrop-blur-md px-4 py-2 rounded-xl text-sm font-bold transition-all"
             >
-              <MessageCircle className="w-4 h-4" /> Ask HR Assistant
+              <MessageCircle className="w-4 h-4" /> Ask Assistant
             </button>
           </div>
         )}
@@ -138,7 +143,7 @@ export function AiInsightsCard() {
               </div>
             </div>
           )}
-          <div ref={chatEndRef} />
+          <div ref={chatContainerRef} />
         </div>
 
         {/* Chat Input */}

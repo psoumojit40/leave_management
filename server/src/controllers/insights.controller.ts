@@ -11,23 +11,47 @@ interface AuthRequest extends Request {
 // Initialize the Gemini Client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string);
 
+// ✅ BULLETPROOF HELPER: Safely extracts the balance whether Mongoose uses a Map or a plain object
+const getSafeBalance = (user: any, leaveName: string, defaultQuota: number) => {
+  if (!user || !user.leaveBalances) return defaultQuota;
+  
+  let val;
+  if (typeof user.leaveBalances.get === 'function') {
+    // If it's a Mongoose Map
+    val = user.leaveBalances.get(leaveName);
+  } else {
+    // If it's a plain Javascript Object
+    val = user.leaveBalances[leaveName];
+  }
+  
+  return (val !== undefined && val !== null) ? val : defaultQuota;
+};
+
 export const getEmployeeInsights = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
 
-    // 1. DYNAMICALLY FETCH ALL LEAVE CATEGORIES
+    const gender = req.user.gender?.toLowerCase();
+
+    // Fetch all leave categories
     const leaveSettings = await LeaveSetting.find({});
     let leaveSummary = "Here is the summary of the employee's current leave balances:\n";
 
-    // Loop through every leave type a manager has created
     leaveSettings.forEach(setting => {
+      const name = setting.name.toLowerCase();
+      
+      // Filter out mismatched gender leaves
+      if (gender === 'male' && name.includes('maternity')) return;
+      if (gender === 'female' && name.includes('paternity')) return;
+
       const quota = setting.defaultDays;
-      // Find the user's balance, or default to the full quota if they haven't used any
-      const balance = req.user.leaveBalances?.[setting.name] ?? quota;
+      // ✅ Use our new helper function
+      const balance = getSafeBalance(req.user, setting.name, quota);
+      
       leaveSummary += `- ${setting.name}: ${balance} days remaining out of ${quota} total.\n`;
     });
 
-    // 2. Find when they last took ANY approved break
+    // Find when they last took ANY approved break
     const lastLeave = await LeaveRequest.findOne({
       employeeId: req.user._id,
       status: 'approved' 
@@ -40,7 +64,7 @@ export const getEmployeeInsights = async (req: AuthRequest, res: Response, next:
       lastLeaveText = `last took a break ${daysSinceLastLeave} days ago`;
     }
 
-    // 3. Construct the Prompt with the dynamic list
+    // Construct the Prompt
     const prompt = `
       You are an empathetic, professional HR assistant inside a portal called Team Hub.
       The employee's name is ${req.user.firstName}.
@@ -49,6 +73,7 @@ export const getEmployeeInsights = async (req: AuthRequest, res: Response, next:
       ${leaveSummary}
 
       Write a friendly 2-sentence proactive suggestion for their dashboard. 
+      - First whenever the employee log in greet them by name and acknowledge their hard work.
       - Do NOT list all their leaves to them. Just look at the numbers and make a smart observation.
       - If they are running out of a major leave type (like Annual or Sick), advise them to plan carefully.
       - If they haven't taken a break in over 60 days, encourage them to use some time to recharge.
@@ -75,14 +100,22 @@ export const chatWithEmployee = async (req: AuthRequest, res: Response) => {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
 
     const { message, history } = req.body;
+    const gender = req.user.gender?.toLowerCase();
 
-    // 1. DYNAMICALLY FETCH ALL LEAVES FOR THE CHATBOT CONTEXT
     const leaveSettings = await LeaveSetting.find({});
     let leaveSummary = "Employee Leave Balances:\n";
 
     leaveSettings.forEach(setting => {
+      const name = setting.name.toLowerCase();
+      
+      // Filter out mismatched gender leaves
+      if (gender === 'male' && name.includes('maternity')) return;
+      if (gender === 'female' && name.includes('paternity')) return;
+
       const quota = setting.defaultDays;
-      const balance = req.user.leaveBalances?.[setting.name] ?? quota;
+      // ✅ Use our new helper function
+      const balance = getSafeBalance(req.user, setting.name, quota);
+      
       leaveSummary += `- ${setting.name}: ${balance} days remaining (Yearly Quota: ${quota})\n`;
     });
 
@@ -96,7 +129,6 @@ export const chatWithEmployee = async (req: AuthRequest, res: Response) => {
       Keep answers extremely brief, friendly, and helpful. Do not use markdown formatting like bolding or lists unless necessary. Answer questions directly based on the balances provided above.`
     });
 
-    // Validate history
     let validHistory = history || [];
     if (validHistory.length > 0 && validHistory[0].role === 'model') {
       validHistory = [
